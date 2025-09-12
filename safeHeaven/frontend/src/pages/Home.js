@@ -1,21 +1,37 @@
 // frontend/src/pages/Home.js
-import { useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { jwtDecode } from "jwt-decode";
 
 function Home() {
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
+  const [user, setUser] = useState(null);
 
   const [coords, setCoords] = useState(null);
   const [weather, setWeather] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [locationError, setLocationError] = useState('');
+  const [locationError, setLocationError] = useState("");
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     window.location.reload();
   };
 
+  // Decode user info from token
+  useEffect(() => {
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setUser(decoded);
+      } catch (err) {
+        console.error("Invalid token:", err);
+      }
+    }
+  }, [token]);
+
+  // Fetch location + NASA data
   useEffect(() => {
     if (token) {
       if (navigator.geolocation) {
@@ -25,16 +41,14 @@ function Home() {
             const { latitude, longitude } = position.coords;
             setCoords({ latitude, longitude });
 
-            // format today and 5 days ago
             const today = new Date();
-            const end = today.toISOString().split('T')[0].replace(/-/g, '');
+            const end = today.toISOString().split("T")[0].replace(/-/g, "");
             const startDate = new Date(today);
-            startDate.setDate(today.getDate() - 4); // 5 days range including today
-            const start = startDate.toISOString().split('T')[0].replace(/-/g, '');
+            startDate.setDate(today.getDate() - 4);
+            const start = startDate.toISOString().split("T")[0].replace(/-/g, "");
 
             try {
               const url = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M,RH2M,PRECTOTCORR&community=AG&start=${start}&end=${end}&latitude=${latitude}&longitude=${longitude}&format=JSON`;
-
               const res = await fetch(url);
               const data = await res.json();
 
@@ -53,46 +67,46 @@ function Home() {
               }
               setLoading(false);
             } catch (err) {
-              console.error('Error fetching NASA weather data:', err);
-              setLocationError('Error fetching weather from NASA. Please try again later.');
+              console.error("Error fetching NASA weather data:", err);
+              setLocationError("Error fetching weather from NASA. Please try again later.");
               setLoading(false);
             }
           },
           (err) => {
-            console.error('Geolocation error:', err);
-            setLocationError('Unable to get your location. Please allow location access.');
+            console.error("Geolocation error:", err);
+            setLocationError("Unable to get your location. Please allow location access.");
             setLoading(false);
           }
         );
       } else {
-        setLocationError('Geolocation is not supported by your browser.');
+        setLocationError("Geolocation is not supported by your browser.");
       }
     }
   }, [token]);
 
   return (
-    <div style={{ textAlign: 'center', marginTop: '50px' }}>
+    <div style={{ textAlign: "center", marginTop: "50px" }}>
       <h1>Welcome to SafeHeaven App</h1>
 
       {token ? (
         <>
-          <p>You are logged in!</p>
+          <p>You are logged in as <strong>{user?.name}</strong> ({user?.email})</p>
           <button
             onClick={handleLogout}
             style={{
-              padding: '10px 20px',
-              backgroundColor: 'red',
-              color: 'white',
-              border: 'none',
-              cursor: 'pointer',
-              marginBottom: '20px',
+              padding: "10px 20px",
+              backgroundColor: "red",
+              color: "white",
+              border: "none",
+              cursor: "pointer",
+              marginBottom: "20px",
             }}
           >
             Logout
           </button>
 
           {coords && (
-            <div style={{ marginBottom: '20px' }}>
+            <div style={{ marginBottom: "20px" }}>
               <h3>Your Location</h3>
               <p>📍 Latitude: {coords.latitude.toFixed(6)}</p>
               <p>📍 Longitude: {coords.longitude.toFixed(6)}</p>
@@ -100,22 +114,21 @@ function Home() {
           )}
 
           {loading && <p>Fetching last 5 days weather from NASA...</p>}
-
-          {locationError && <p style={{ color: 'red' }}>{locationError}</p>}
+          {locationError && <p style={{ color: "red" }}>{locationError}</p>}
 
           {weather.length > 0 ? (
-            <div style={{ marginTop: '20px' }}>
+            <div style={{ marginTop: "20px" }}>
               <h2>Last 5 Days Weather (NASA POWER API)</h2>
               {weather.map((day) => (
                 <div
                   key={day.date}
                   style={{
-                    border: '1px solid #ddd',
-                    borderRadius: '10px',
-                    padding: '10px',
-                    margin: '10px auto',
-                    width: '300px',
-                    textAlign: 'left',
+                    border: "1px solid #ddd",
+                    borderRadius: "10px",
+                    padding: "10px",
+                    margin: "10px auto",
+                    width: "300px",
+                    textAlign: "left",
                   }}
                 >
                   <strong>📅 Date:</strong> {day.date} <br />
@@ -132,31 +145,50 @@ function Home() {
       ) : (
         <>
           <p>Please login or register.</p>
-          <div style={{ marginTop: '20px' }}>
+          <div style={{ marginTop: "20px" }}>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate("/login")}
               style={{
-                padding: '10px 20px',
-                backgroundColor: '#2196F3',
-                color: 'white',
-                border: 'none',
-                cursor: 'pointer',
-                marginRight: '10px',
+                padding: "10px 20px",
+                backgroundColor: "#2196F3",
+                color: "white",
+                border: "none",
+                cursor: "pointer",
+                marginRight: "10px",
               }}
             >
               Login
             </button>
             <button
-              onClick={() => navigate('/register')}
+              onClick={() => navigate("/register")}
               style={{
-                padding: '10px 20px',
-                backgroundColor: '#4CAF50',
-                color: 'white',
-                border: 'none',
-                cursor: 'pointer',
+                padding: "10px 20px",
+                backgroundColor: "#4CAF50",
+                color: "white",
+                border: "none",
+                cursor: "pointer",
               }}
             >
               Register
+            </button>
+          </div>
+
+          <div style={{ marginTop: "20px" }}>
+            <button
+              onClick={() =>
+                (window.location.href = "http://localhost:5000/auth/google")
+              }
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#DB4437", // Google Red
+                color: "white",
+                border: "none",
+                cursor: "pointer",
+                borderRadius: "5px",
+                marginTop: "15px",
+              }}
+            >
+              Sign in with Google
             </button>
           </div>
         </>
