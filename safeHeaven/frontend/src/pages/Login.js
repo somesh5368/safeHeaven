@@ -1,62 +1,63 @@
 // frontend/src/pages/Login.js
-import { useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 function Login() {
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', formData);
-      localStorage.setItem('token', res.data.token);
-      alert('Login Successful!');
-      navigate('/'); // redirect to home
+      const res = await axios.post("http://localhost:5000/api/auth/login", {
+        email,
+        password,
+      });
+
+      // ✅ Save token
+      localStorage.setItem("token", res.data.token);
+
+      alert("Login successful");
+      navigate("/");
     } catch (err) {
-      alert(err.response.data.message || 'Invalid credentials');
+      const message = err.response?.data?.message || "Login failed";
+
+      if (message.includes("verify your email")) {
+        alert("⚠️ Please verify your email before login.");
+        // Redirect to OTP page with email
+        navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
+      } else {
+        alert(message);
+      }
     }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center' }}>
+    <div style={{ textAlign: "center", marginTop: "50px" }}>
       <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleLogin}>
         <input
-          name="email"
           type="email"
           placeholder="Email"
-          value={formData.email}
-          onChange={handleChange}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           required
-          style={{ width: '100%', padding: '10px', margin: '10px 0' }}
         />
+        <br />
+        <br />
         <input
-          name="password"
           type="password"
           placeholder="Password"
-          value={formData.password}
-          onChange={handleChange}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           required
-          style={{ width: '100%', padding: '10px', margin: '10px 0' }}
         />
-        <button
-          type="submit"
-          style={{
-            width: '100%',
-            padding: '10px',
-            margin: '10px 0',
-            backgroundColor: '#2196F3',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer'
-          }}
-        >
-          Login
-        </button>
+        <br />
+        <br />
+        <button type="submit">Login</button>
       </form>
     </div>
   );
