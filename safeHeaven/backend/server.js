@@ -49,7 +49,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
-
+//For authentication
 app.get(
   "/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "http://localhost:3000/login", session: false }),
