@@ -59,6 +59,8 @@ function Login() {
         <br />
         <button type="submit">Login</button>
       </form>
+      <br></br>
+      <a href="/forgot-password">Forgot Password?</a>
     </div>
   );
 }

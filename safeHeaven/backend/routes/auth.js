@@ -171,6 +171,82 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
+// ================== FORGOT PASSWORD (Send OTP) ==================
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "User not registered" });
+
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await user.save();
+
+    // Send email
+    await transporter.sendMail({
+      from: `"SafeHeaven" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Password Reset OTP - SafeHeaven",
+      text: `Your OTP for password reset is ${otp}. It will expire in 10 minutes.`,
+    });
+
+    res.status(200).json({ message: "OTP sent to your email." });
+  } catch (err) {
+    console.error("Forgot Password Error:", err.message);
+    res.status(500).json({ message: "Server error during forgot password" });
+  }
+});
+
+// ================== VERIFY RESET OTP ==================
+router.post("/verify-reset-otp", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "User not found" });
+
+    if (!user.otp || user.otp !== otp || user.otpExpiry < Date.now()) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    // ✅ OTP correct
+    res.status(200).json({ message: "OTP verified. You can reset your password now." });
+  } catch (err) {
+    console.error("Verify Reset OTP Error:", err.message);
+    res.status(500).json({ message: "Server error during OTP verification" });
+  }
+});
+
+// ================== RESET PASSWORD ==================
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "User not found" });
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+
+    // Clear OTP fields
+    user.otp = undefined;
+    user.otpExpiry = undefined;
+
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successful! Please login." });
+  } catch (err) {
+    console.error("Reset Password Error:", err.message);
+    res.status(500).json({ message: "Server error during password reset" });
+  }
+});
+
+
+
 // ================== GOOGLE SIGN-IN ==================
 router.post('/google', async (req, res) => {
   try {
