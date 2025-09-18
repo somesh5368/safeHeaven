@@ -5,9 +5,6 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import GoogleSuccess from "./pages/GoogleSuccess";
 import VerifyOtp from "./pages/VerifyOtp"; // ✅ import VerifyOtp
-import ForgotPassword from "./pages/ForgotPassword";
-import VerifyResetOtp from "./pages/VerifyResetOtp";
-import ResetPassword from "./pages/ResetPassword";
 
 function App() {
   return (
@@ -20,10 +17,6 @@ function App() {
         <Route path="/google-success" element={<GoogleSuccess />} />
         {/* ✅ New route for OTP verification */}
         <Route path="/verify-otp" element={<VerifyOtp />} />
-
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/verify-reset-otp" element={<VerifyResetOtp />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </Router>
   );
