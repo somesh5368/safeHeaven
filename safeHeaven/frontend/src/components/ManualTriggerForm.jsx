@@ -1,10 +1,8 @@
-// src/components/ManualTriggerForm.jsx
 import React from "react";
 
 const ManualTriggerForm = ({
   manualLat, setManualLat,
   manualLng, setManualLng,
-  disaster, setDisaster,
   onSubmit, submitting
 }) => {
   return (
@@ -24,6 +22,7 @@ const ManualTriggerForm = ({
         value={manualLat}
         onChange={(e) => setManualLat(e.target.value)}
         style={{ padding: 8, width: 140 }}
+        autoComplete="off"
       />
       <input
         type="text"
@@ -31,17 +30,8 @@ const ManualTriggerForm = ({
         value={manualLng}
         onChange={(e) => setManualLng(e.target.value)}
         style={{ padding: 8, width: 140 }}
+        autoComplete="off"
       />
-      <select
-        value={disaster}
-        onChange={(e) => setDisaster(e.target.value)}
-        style={{ padding: 8 }}
-      >
-        <option value="earthquake">Earthquake</option>
-        <option value="flood">Flood</option>
-        <option value="cyclone">Cyclone/Storm</option>
-        <option value="tsunami">Tsunami</option>
-      </select>
       <button
         onClick={onSubmit}
         disabled={submitting}
@@ -53,7 +43,7 @@ const ManualTriggerForm = ({
           cursor: submitting ? "not-allowed" : "pointer",
         }}
       >
-        {submitting ? "Triggering..." : "Trigger Alert"}
+        {submitting ? "Checking..." : "Check Hazards"}
       </button>
     </div>
   );

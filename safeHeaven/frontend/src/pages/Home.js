@@ -1,6 +1,6 @@
 // src/pages/Home.js
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { jwtDecode } from "jwt-decode";
 
 import ManualTriggerForm from "../components/ManualTriggerForm";
@@ -11,7 +11,15 @@ import DisasterDashboard from "../components/DisasterDashboard";
 import DISASTER_CONFIG from "../utils/disasterConfig";
 import { fetchWeather as fetchWeatherUtil } from "../utils/fetchWeather";
 
-const ALLOWED = new Set(["earthquake", "flood", "cyclone", "tsunami"]); // strict allowlist [web:114]
+// Helper: pick the most recent available sample within the 5-day window
+const pickMostRecentAvailable = (series) => {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const d = series[i];
+    if (!d) continue;
+    if (d.rain != null || d.humidity != null || d.temperature != null) return d;
+  }
+  return series[series.length - 1] || null;
+};
 
 function Home() {
   const navigate = useNavigate();
@@ -26,7 +34,6 @@ function Home() {
 
   const [manualLat, setManualLat] = useState("");
   const [manualLng, setManualLng] = useState("");
-  const [disaster, setDisaster] = useState("earthquake");
   const [submitting, setSubmitting] = useState(false);
   const [alertBanner, setAlertBanner] = useState(null);
 
@@ -34,7 +41,7 @@ function Home() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     window.location.reload();
-  }; // basic logout [web:114]
+  }; // simple logout flow [web:2]
 
   useEffect(() => {
     if (!token) return;
@@ -43,19 +50,20 @@ function Home() {
     } catch {
       // ignore bad token
     }
-  }, [token]); // decode on token change [web:319]
+  }, [token]); // decode on token change [web:2]
 
   const fetchWeather = useCallback(async (lat, lng) => {
     setLoading(true);
+    setLocationError("");
     try {
       const data = await fetchWeatherUtil(lat, lng);
       setWeather(data);
-    } catch {
+    } catch (e) {
       setLocationError("Weather fetch failed. Try again.");
     } finally {
       setLoading(false);
     }
-  }, []); // POWER daily data should end at “yesterday” for stability [web:243]
+  }, []); // POWER daily data: stable when ending at yesterday [web:5]
 
   useEffect(() => {
     if (!token) return;
@@ -66,70 +74,39 @@ function Home() {
     navigator.geolocation.getCurrentPosition(
       async ({ coords: { latitude, longitude } }) => {
         setCoords({ latitude, longitude });
-        await fetchWeather(latitude, longitude);
+        await fetchWeather(latitude, longitude); // daily endpoint, 5-day window [web:5]
       },
       () => setLocationError("Unable to get your location. Please allow location access.")
     );
-  }, [token, fetchWeather]); // load current location on login [web:114]
+  }, [token, fetchWeather]);
 
-  const handleManualTrigger = async () => {
+  // Manual check: no disaster select; always check all hazards for typed lat/lon
+  const handleManualCheck = async () => {
     const latNum = Number(manualLat);
     const lngNum = Number(manualLng);
 
     if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
       alert("Enter valid numeric latitude and longitude");
       return;
-    } // strict numeric validation [web:114]
+    }
     if (latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
       alert("Lat must be -90..90 and Lng -180..180");
       return;
-    } // bounds check [web:114]
-
-    const type = String(disaster || "").toLowerCase().trim();
-    if (!ALLOWED.has(type)) {
-      alert("Invalid disaster type");
-      return;
-    } // normalized, allowlisted payload [web:114]
-
+    }
     if (!token) {
       alert("Please login first");
       return;
-    } // require auth [web:114]
+    }
 
     setSubmitting(true);
     try {
-      // Update map immediately for UX
+      // Update map immediately
       setCoords({ latitude: latNum, longitude: lngNum });
 
-      // Weather is informational and decoupled from alert flow
-      await fetchWeather(latNum, lngNum); // POWER daily data [web:243]
+      // Fetch weather for these coords
+      await fetchWeather(latNum, lngNum);
 
-      // Trigger backend alert only with normalized payload
-      const res = await fetch("http://localhost:5000/api/trigger-alert", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          latitude: latNum,
-          longitude: lngNum,
-          disaster: type,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Trigger failed (${res.status})`);
-      } // banner only on success [web:114]
-
-      const cfg = DISASTER_CONFIG[type];
-      setAlertBanner({
-        ...cfg,
-        coordinates: `${latNum.toFixed(4)}, ${lngNum.toFixed(4)}`,
-        timestamp: new Date().toLocaleString(),
-      });
-      setTimeout(() => setAlertBanner(null), 10000);
+      // Auto alert if any hazard reaches warning/critical will be triggered by the Dashboard handler below
     } catch (e) {
       alert(e.message);
     } finally {
@@ -137,6 +114,7 @@ function Home() {
     }
   };
 
+  // Dashboard sends back most urgent hazard; raise temporary banner
   const handleDashboardAlert = (type, level) => {
     const cfg = DISASTER_CONFIG[type];
     if (!cfg) return;
@@ -151,11 +129,29 @@ function Home() {
     setTimeout(() => setAlertBanner(null), 10000);
   };
 
+  const renderValue = (label, value, unit) => {
+    const txt =
+      value == null ? "Data unavailable" : `${value} ${unit ?? ""}`.trim();
+    return (
+      <>
+        <strong>{label}</strong> {txt}
+      </>
+    );
+  };
+
+  // For the small “Last 5 Days Weather” list, show latest available first line as a hint
+  const latestAvailable = useMemo(
+    () => pickMostRecentAvailable(weather),
+    [weather]
+  );
+
   return (
     <div style={{ maxWidth: 1160, margin: "32px auto 40px", padding: "0 16px" }}>
       <AlertBanner banner={alertBanner} onClose={() => setAlertBanner(null)} />
 
-      <h1 style={{ textAlign: "center", marginBottom: 16 }}>Welcome to SafeHeaven App</h1>
+      <h1 style={{ textAlign: "center", marginBottom: 16 }}>
+        Welcome to SafeHeaven App
+      </h1>
 
       {token ? (
         <>
@@ -184,7 +180,7 @@ function Home() {
             >
               Logout
             </button>
-          </div> {/* centered and vertically aligned text in button [web:393][web:409] */}
+          </div>
 
           <div style={{ margin: "16px 0 22px" }}>
             <ManualTriggerForm
@@ -192,9 +188,7 @@ function Home() {
               setManualLat={setManualLat}
               manualLng={manualLng}
               setManualLng={setManualLng}
-              disaster={disaster}
-              setDisaster={setDisaster}
-              onSubmit={handleManualTrigger}
+              onSubmit={handleManualCheck}
               submitting={submitting}
             />
           </div>
@@ -230,6 +224,11 @@ function Home() {
               <h2 style={{ textAlign: "left", margin: "0 0 10px 0" }}>
                 Last 5 Days Weather (NASA POWER API)
               </h2>
+              {latestAvailable?.date && (
+                <div style={{ marginBottom: 8, fontSize: 13, opacity: 0.8 }}>
+                  Showing latest available values within last 5 days. Data date: {latestAvailable.date}
+                </div>
+              )}
               {weather.map((day) => (
                 <div
                   key={day.date}
@@ -242,10 +241,10 @@ function Home() {
                     textAlign: "left",
                   }}
                 >
-                  <strong>📅 Date:</strong> {day.date} <br />
-                  🌡 Temp: {day.temperature} °C <br />
-                  💧 Humidity: {day.humidity} % <br />
-                  🌧 Rain: {day.rain} mm
+                  <div>📅 <strong>Date:</strong> {day.date}</div>
+                  <div>🌡 {renderValue("Temp:", day.temperature, "°C")}</div>
+                  <div>💧 {renderValue("Humidity:", day.humidity, "%")}</div>
+                  <div>🌧 {renderValue("Rain:", day.rain, "mm")}</div>
                 </div>
               ))}
             </div>
@@ -297,11 +296,13 @@ function Home() {
             >
               Register
             </button>
-          </div> {/* center-aligned auth buttons [web:393][web:409] */}
+          </div>
 
           <div style={{ marginTop: 20, textAlign: "center" }}>
             <button
-              onClick={() => (window.location.href = "http://localhost:5000/auth/google")}
+              onClick={() =>
+                (window.location.href = "http://localhost:5000/auth/google")
+              }
               style={{
                 display: "inline-flex",
                 justifyContent: "center",
@@ -320,7 +321,7 @@ function Home() {
             >
               Sign in with Google
             </button>
-          </div> {/* consistent centering approach [web:393][web:409] */}
+          </div>
         </>
       )}
     </div>
