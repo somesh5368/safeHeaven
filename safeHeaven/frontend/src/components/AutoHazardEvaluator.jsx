@@ -1,5 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+// src/components/AutoHazardEvaluator.jsx
+import { useEffect, useMemo, useState } from "react";
 import { fetchWeather } from "../utils/fetchWeather";
+import { fetchEarthquakes } from "../utils/fetchEarthquakes";
+import { fetchTsunamiAlerts } from "../utils/fetchTsunamiAlerts";
 
 const valOr0 = (v) => (v == null ? 0 : Number(v));
 
@@ -18,8 +21,6 @@ const deriveCycloneStatus = (recent=[]) => {
   return "neutral";
 };
 
-const deriveStaticStatus = () => "neutral";
-
 const fmtVal = (v, unit, digits=1) => {
   if (v == null) return "Data unavailable";
   const n = Number(v);
@@ -29,26 +30,34 @@ const fmtVal = (v, unit, digits=1) => {
   return `${n.toFixed(digits)} °C`;
 };
 
-const AutoHazardEvaluator = ({ coords, onResult }) => {
+export default function AutoHazardEvaluator({ coords, onResult }) {
   const [daily, setDaily] = useState([]);
+  const [quakes, setQuakes] = useState([]);
+  const [tsu, setTsu] = useState([]);
   const [updatedAt, setUpdatedAt] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // source-specific errors for UI visibility
+  const [wxErr, setWxErr] = useState("");
+  const [eqErr, setEqErr] = useState("");
+  const [tsuErr, setTsuErr] = useState("");
 
   useEffect(() => {
     let alive = true;
     const run = async () => {
       if (!coords?.latitude || !coords?.longitude) return;
       setLoading(true);
+      setWxErr(""); setEqErr(""); setTsuErr("");
       try {
-        const data = await fetchWeather(coords.latitude, coords.longitude);
+        const [wx, eq, ta] = await Promise.all([
+          fetchWeather(coords.latitude, coords.longitude).catch(e => { setWxErr(e?.message || "Weather error"); return []; }),
+          fetchEarthquakes({ lat: coords.latitude, lon: coords.longitude, hours: 48, radiusKm: 500, minmag: 3.0 }).catch(e => { setEqErr(e?.message || "USGS error"); return []; }),
+          fetchTsunamiAlerts().catch(e => { setTsuErr(e?.message || "NWS error"); return []; })
+        ]);
         if (!alive) return;
-        setDaily(data || []);
-        setUpdatedAt(new Date().toLocaleString());
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error("AutoHazardEvaluator fetch error", e);
-        if (!alive) return;
-        setDaily([]);
+        setDaily(wx || []);
+        setQuakes(eq || []);
+        setTsu(ta || []);
         setUpdatedAt(new Date().toLocaleString());
       } finally {
         if (alive) setLoading(false);
@@ -67,7 +76,6 @@ const AutoHazardEvaluator = ({ coords, onResult }) => {
     })), [daily]
   );
 
-  // Latest available sample within the 5-day window
   const recentValid = useMemo(() => {
     for (let i = recent.length - 1; i >= 0; i--) {
       const r = recent[i];
@@ -78,67 +86,63 @@ const AutoHazardEvaluator = ({ coords, onResult }) => {
 
   const flood = useMemo(() => {
     const st = deriveFloodStatus(recent);
-    return {
-      status: st,
-      lines: [
-        { label: "Rain (latest avail.)", value: fmtVal(recentValid?.rain, "mm") },
-        { label: "Humidity (latest avail.)", value: fmtVal(recentValid?.humidity, "%") },
-        { label: "Temp (latest avail.)", value: fmtVal(recentValid?.temp, "°C") },
-        { label: "Data date", value: recentValid?.date || "Data unavailable" },
-      ],
-      note: "Latest available day within last 5 days (NASA POWER)",
-      updatedAt
-    };
-  }, [recent, recentValid, updatedAt]);
+    const lines = [
+      { label: "Rain (latest avail.)", value: fmtVal(recentValid?.rain, "mm") },
+      { label: "Humidity (latest avail.)", value: fmtVal(recentValid?.humidity, "%") },
+      { label: "Temp (latest avail.)", value: fmtVal(recentValid?.temp, "°C") },
+      { label: "Data date", value: recentValid?.date || "Data unavailable" },
+    ];
+    if (wxErr) lines.unshift({ label: "POWER status", value: wxErr });
+    return { status: st, lines, note: "Latest available day within last 5 days (NASA POWER)", updatedAt };
+  }, [recent, recentValid, updatedAt, wxErr]);
 
   const cyclone = useMemo(() => {
     const st = deriveCycloneStatus(recent);
-    return {
-      status: st,
-      lines: [
-        { label: "Rain (latest avail.)", value: fmtVal(recentValid?.rain, "mm") },
-        { label: "Humidity (latest avail.)", value: fmtVal(recentValid?.humidity, "%") },
-        { label: "Temp (latest avail.)", value: fmtVal(recentValid?.temp, "°C") },
-        { label: "Data date", value: recentValid?.date || "Data unavailable" },
-      ],
-      note: "Latest available day within last 5 days (NASA POWER)",
-      updatedAt
-    };
-  }, [recent, recentValid, updatedAt]);
+    const lines = [
+      { label: "Rain (latest avail.)", value: fmtVal(recentValid?.rain, "mm") },
+      { label: "Humidity (latest avail.)", value: fmtVal(recentValid?.humidity, "%") },
+      { label: "Temp (latest avail.)", value: fmtVal(recentValid?.temp, "°C") },
+      { label: "Data date", value: recentValid?.date || "Data unavailable" },
+    ];
+    if (wxErr) lines.unshift({ label: "POWER status", value: wxErr });
+    return { status: st, lines, note: "Latest available day within last 5 days (NASA POWER)", updatedAt };
+  }, [recent, recentValid, updatedAt, wxErr]);
 
-  const earthquake = useMemo(() => ({
-    status: deriveStaticStatus(),
-    lines: [
-      { label: "Seismic feed", value: "Not connected" },
-      { label: "Local report", value: "No report" },
-    ],
-    note: "Use manual/official alerts to update",
-    updatedAt
-  }), [updatedAt]);
+  const eqStatus = useMemo(() => {
+    const anyStrong = quakes.some(q => (q.mag ?? 0) >= 5.0);
+    const cluster = quakes.filter(q => (q.mag ?? 0) >= 4.0).length >= 3;
+    return anyStrong || cluster ? "warning" : "neutral";
+  }, [quakes]);
 
-  const tsunami = useMemo(() => ({
-    status: deriveStaticStatus(),
-    lines: [
-      { label: "Tsunami feed", value: "Not connected" },
-      { label: "Coastal risk", value: "Unknown" },
-    ],
-    note: "Official bulletins required",
-    updatedAt
-  }), [updatedAt]);
+  const earthquake = useMemo(() => {
+    const lines = [
+      { label: "Recent quakes (48h)", value: quakes.length || 0 },
+      { label: "Strongest mag", value: quakes.length ? (Math.max(...quakes.map(q => q.mag || 0)).toFixed(1)) : "None" },
+    ];
+    if (eqErr) lines.unshift({ label: "USGS status", value: eqErr });
+    return { status: eqStatus, lines, note: "USGS 48h within 500 km", updatedAt };
+  }, [eqStatus, quakes, updatedAt, eqErr]);
+
+  const tsunami = useMemo(() => {
+    const lines = [
+      { label: "Active advisories", value: tsu.length || 0 },
+      { label: "Most recent", value: tsu[0]?.headline || "None" },
+    ];
+    if (tsuErr) lines.unshift({ label: "NWS status", value: tsuErr });
+    return { status: (tsu.length > 0 ? "warning" : "neutral"), lines, note: "NWS tsunami alerts", updatedAt };
+  }, [tsu, updatedAt, tsuErr]);
 
   useEffect(() => {
+    const order = { critical: 2, warning: 1, neutral: 0 };
     const list = [
       { key: "flood", level: flood.status },
       { key: "cyclone", level: cyclone.status },
       { key: "earthquake", level: earthquake.status },
       { key: "tsunami", level: tsunami.status },
     ];
-    const order = { critical: 2, warning: 1, neutral: 0 };
     const top = list.sort((a, b) => order[b.level] - order[a.level])[0];
-    onResult?.({ loading, daily, flood, cyclone, earthquake, tsunami, top });
-  }, [loading, daily, flood, cyclone, earthquake, tsunami, onResult]);
+    onResult?.({ loading, daily, quakes, tsu, flood, cyclone, earthquake, tsunami, top });
+  }, [loading, daily, quakes, tsu, flood, cyclone, earthquake, tsunami, onResult]);
 
   return null;
-};
-
-export default AutoHazardEvaluator;
+}

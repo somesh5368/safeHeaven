@@ -1,3 +1,4 @@
+// src/components/DisasterCard.jsx
 import React from "react";
 
 const STATUS_STYLES = {
