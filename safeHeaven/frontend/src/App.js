@@ -8,6 +8,7 @@ import VerifyOtp from "./pages/VerifyOtp"; // ✅ import VerifyOtp
 import ForgotPassword from "./pages/ForgotPassword";
 import VerifyResetOtp from "./pages/VerifyResetOtp";
 import ResetPassword from "./pages/ResetPassword";
+import EmergencyContacts from "./components/EmergencyContacts";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-reset-otp" element={<VerifyResetOtp />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/emergency-contacts" element={<EmergencyContacts />} />
       </Routes>
     </Router>
   );

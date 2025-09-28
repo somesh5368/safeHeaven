@@ -11,6 +11,9 @@ import DisasterDashboard from "../components/DisasterDashboard";
 import DISASTER_CONFIG from "../utils/disasterConfig";
 import { fetchWeather as fetchWeatherUtil } from "../utils/fetchWeather";
 
+import { getContacts } from "../api/emergency";
+
+
 // Helper: pick the most recent available sample within the 5-day window
 const pickMostRecentAvailable = (series) => {
   for (let i = series.length - 1; i >= 0; i--) {
@@ -20,6 +23,7 @@ const pickMostRecentAvailable = (series) => {
   }
   return series[series.length - 1] || null;
 };
+
 
 function Home() {
   const navigate = useNavigate();
@@ -79,6 +83,28 @@ function Home() {
       () => setLocationError("Unable to get your location. Please allow location access.")
     );
   }, [token, fetchWeather]);
+
+
+  useEffect(() => {
+  const checkEmergencyContacts = async () => {
+    if (!token) return;
+
+    try {
+      const res = await getContacts(); // JWT sent automatically
+      if (!res.data || res.data.length === 0) {
+        // Redirect to emergency contacts page if user has no contact
+        navigate("/emergency-contacts");
+      }
+    } catch (err) {
+      console.error("Error checking emergency contacts:", err);
+      // Optional: redirect to login if unauthorized
+      navigate("/login");
+    }
+  };
+
+  checkEmergencyContacts();
+}, [token, navigate]);
+
 
   // Manual check: no disaster select; always check all hazards for typed lat/lon
   const handleManualCheck = async () => {
@@ -180,6 +206,24 @@ function Home() {
             >
               Logout
             </button>
+
+
+              {/* Emergency Contacts Button */}
+      <button
+        onClick={() => navigate("/emergency-contacts")}
+        style={{
+          marginTop: "20px",
+          padding: "10px 20px",
+          background: "#3498db",
+          color: "#fff",
+          border: "none",
+          borderRadius: "6px",
+          cursor: "pointer",
+          fontSize: "16px",
+        }}
+      >
+        📞 Manage Emergency Contacts
+      </button>
           </div>
 
           <div style={{ margin: "16px 0 22px" }}>
