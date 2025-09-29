@@ -50,6 +50,9 @@ passport.use(new GoogleStrategy({
 
 // ================== ROUTES ==================
 app.use('/api/auth', require('./routes/auth')); // Auth router [web:114]
+app.use("/api/emergency", require("./routes/emergency")); // Emergency contacts router [web:114]
+
+// Google OAuth routes
 
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
@@ -75,6 +78,8 @@ app.get('/auth/logout', (req, res) => {
 app.get('/', (req, res) => {
   res.send('✅ SafeHeaven API is running...');
 }); // Health check [web:114]
+
+
 
 // ================== DATABASE ==================
 mongoose.connect(process.env.MONGO_URI, {
