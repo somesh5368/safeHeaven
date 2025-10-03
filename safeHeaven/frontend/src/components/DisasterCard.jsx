@@ -1,69 +1,338 @@
 // src/components/DisasterCard.jsx
 import React from "react";
+import { motion } from "framer-motion";
 
 const STATUS_STYLES = {
-  neutral: { bg: "#F9FAFB", border: "#E5E7EB", text: "#111827", chipBg:"#FFFFFF" },
-  warning: { bg: "#FFF7ED", border: "#FED7AA", text: "#9A3412", chipBg:"#FFFFFF" },
-  critical:{ bg: "#FEE2E2", border: "#FCA5A5", text: "#991B1B", chipBg:"#FFFFFF" }
+  neutral: {
+    bg: "rgba(76, 175, 80, 0.15)",
+    border: "#4CAF50",
+    text: "#4CAF50",
+    chipBg: "rgba(76, 175, 80, 0.2)",
+    glow: "rgba(76, 175, 80, 0.4)",
+    icon: "✅",
+  },
+  warning: {
+    bg: "rgba(255, 152, 0, 0.15)",
+    border: "#FF9500",
+    text: "#FF9500",
+    chipBg: "rgba(255, 152, 0, 0.2)",
+    glow: "rgba(255, 152, 0, 0.5)",
+    icon: "⚠️",
+  },
+  critical: {
+    bg: "rgba(244, 67, 54, 0.15)",
+    border: "#FF4538",
+    text: "#FF4538",
+    chipBg: "rgba(244, 67, 54, 0.2)",
+    glow: "rgba(244, 67, 54, 0.5)",
+    icon: "🚨",
+  },
 };
-const ICONS = { earthquake: "🏚️", flood: "🌊", cyclone: "🌪️", tsunami: "🌊" };
-const row = { display:"flex", justifyContent:"space-between", alignItems:"center" };
+
+const ICONS = {
+  earthquake: "🏚️",
+  flood: "🌊",
+  cyclone: "🌪️",
+  tsunami: "🌊",
+};
+
 const displayValue = (v) => (v == null || v === "" ? "Data unavailable" : v);
 
-const DisasterCard = ({ type, title, coords, data, status="neutral", onViewDetails }) => {
+const DisasterCard = ({
+  type,
+  title,
+  coords,
+  data,
+  status = "neutral",
+  onViewDetails,
+}) => {
   const styl = STATUS_STYLES[status] || STATUS_STYLES.neutral;
+
+  const cardStyle = {
+    background: "rgba(15, 20, 40, 0.85)",
+    backdropFilter: "blur(15px)",
+    border: `3px solid ${styl.border}`,
+    color: "white",
+    borderRadius: "18px",
+    padding: "25px",
+    minWidth: "320px",
+    maxWidth: "400px",
+    boxShadow: `0 8px 32px ${styl.glow}`,
+    position: "relative",
+    overflow: "hidden",
+  };
+
+  const headerStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "15px",
+  };
+
+  const titleStyle = {
+    fontWeight: "bold",
+    fontSize: "1.3rem",
+    color: styl.text,
+    textShadow: `0 0 15px ${styl.glow}`,
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  };
+
+  const statusBadgeStyle = {
+    fontSize: "0.75rem",
+    padding: "6px 14px",
+    borderRadius: "20px",
+    background: styl.chipBg,
+    border: `2px solid ${styl.border}`,
+    color: styl.text,
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    boxShadow: `0 4px 15px ${styl.glow}`,
+  };
+
+  const coordsStyle = {
+    fontSize: "0.85rem",
+    marginTop: "10px",
+    color: "rgba(255, 255, 255, 0.7)",
+    padding: "8px 12px",
+    background: "rgba(255, 149, 0, 0.1)",
+    borderRadius: "8px",
+    border: "1px solid rgba(255, 149, 0, 0.3)",
+    display: "inline-block",
+  };
+
+  const dataBoxStyle = {
+    marginTop: "15px",
+    background: "rgba(255, 255, 255, 0.05)",
+    borderRadius: "12px",
+    padding: "15px",
+    border: `2px dashed ${styl.border}`,
+  };
+
+  const dataLineStyle = {
+    fontSize: "0.9rem",
+    margin: "10px 0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    color: "rgba(255, 255, 255, 0.9)",
+    padding: "8px 0",
+    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+  };
+
+  const noteStyle = {
+    fontSize: "0.8rem",
+    marginTop: "12px",
+    color: "rgba(255, 255, 255, 0.6)",
+    fontStyle: "italic",
+    paddingTop: "12px",
+    borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+  };
+
+  const footerStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: "15px",
+    paddingTop: "15px",
+    borderTop: `1px solid ${styl.border}`,
+  };
+
+  const updateTimeStyle = {
+    fontSize: "0.75rem",
+    color: "rgba(255, 255, 255, 0.6)",
+  };
+
+  const buttonStyle = {
+    fontSize: "0.9rem",
+    padding: "10px 18px",
+    borderRadius: "10px",
+    border: "none",
+    cursor: "pointer",
+    background: `linear-gradient(45deg, ${styl.border}, ${styl.text})`,
+    color: "white",
+    fontWeight: "bold",
+    boxShadow: `0 4px 15px ${styl.glow}`,
+    transition: "all 0.3s ease",
+  };
+
+  const pulseAnimation =
+    status !== "neutral"
+      ? {
+          scale: [1, 1.02, 1],
+          boxShadow: [
+            `0 8px 32px ${styl.glow}`,
+            `0 12px 40px ${styl.glow}`,
+            `0 8px 32px ${styl.glow}`,
+          ],
+        }
+      : {};
+
   return (
-    <div
-      style={{
-        background: styl.bg,
-        border: `1px solid ${styl.border}`,
-        color: styl.text,
-        borderRadius: 12,
-        padding: 16,
-        minWidth: 280,
-        boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+    <motion.div
+      style={cardStyle}
+      initial={{ opacity: 0, y: 30, rotateX: -15 }}
+      animate={{ opacity: 1, y: 0, rotateX: 0, ...pulseAnimation }}
+      transition={{
+        duration: 0.6,
+        ...(status !== "neutral" && { repeat: Infinity, duration: 2 }),
+      }}
+      whileHover={{
+        scale: 1.03,
+        y: -8,
+        boxShadow: `0 12px 40px ${styl.glow}`,
       }}
     >
-      <div style={row}>
-        <div style={{ fontWeight: 900, fontSize: 16 }}>{ICONS[type]} {title}</div>
-        <span style={{ fontSize: 12, padding: "4px 10px", borderRadius: 999, background: styl.chipBg, border: `1px solid ${styl.border}` }}>
-          {status.toUpperCase()}
-        </span>
-      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          opacity: 0.05,
+          backgroundImage: `radial-gradient(circle at 20% 50%, ${styl.border} 1px, transparent 1px)`,
+          backgroundSize: "20px 20px",
+          pointerEvents: "none",
+        }}
+      />
 
-      <div style={{ fontSize: 12, marginTop: 8, color: "#6B7280" }}>
-        Lat {coords?.latitude?.toFixed?.(2)}, Lng {coords?.longitude?.toFixed?.(2)}
-      </div>
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div style={headerStyle}>
+          <motion.div
+            style={titleStyle}
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <motion.span
+              animate={
+                status !== "neutral" ? { rotate: [0, -10, 10, -10, 0] } : {}
+              }
+              transition={{
+                duration: 1,
+                repeat: status !== "neutral" ? Infinity : 0,
+                repeatDelay: 1,
+              }}
+              style={{ fontSize: "1.8rem" }}
+            >
+              {ICONS[type]}
+            </motion.span>
+            <span>{title}</span>
+          </motion.div>
 
-      <div style={{ marginTop: 12, background: "#FFFFFF", borderRadius: 8, padding: 12, border: `1px dashed ${styl.border}` }}>
-        {data?.lines?.length
-          ? data.lines.map((l, i) => (
-              <div key={i} style={{ fontSize: 13, margin: "6px 0" }}>
-                {l.label}: <span style={{ fontWeight: 700 }}>{displayValue(l.value)}</span>
-              </div>
-            ))
-          : <div style={{ fontSize: 13, opacity: 0.7 }}>No data</div>}
-      </div>
-
-      {data?.note ? (
-        <div style={{ fontSize: 12, marginTop: 8, color: "#6B7280" }}>Note: {data.note}</div>
-      ) : null}
-
-      <div style={{ ...row, marginTop: 12 }}>
-        <div style={{ fontSize: 12, color: "#6B7280" }}>
-          Updated: {data?.updatedAt || "-"}
+          <motion.div
+            style={statusBadgeStyle}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <span>{styl.icon}</span>
+            <span>{status.toUpperCase()}</span>
+          </motion.div>
         </div>
-        <button
-          onClick={onViewDetails}
-          style={{
-            fontSize: 12, padding: "8px 12px", borderRadius: 8, border: "none",
-            cursor: "pointer", background: styl.text, color: "#FFFFFF"
-          }}
+
+        <motion.div
+          style={coordsStyle}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
         >
-          View details
-        </button>
+          📍 Lat {coords?.latitude?.toFixed?.(4) || "N/A"}, Lng{" "}
+          {coords?.longitude?.toFixed?.(4) || "N/A"}
+        </motion.div>
+
+        <motion.div
+          style={dataBoxStyle}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          {data?.lines?.length ? (
+            data.lines.map((l, i) => (
+              <motion.div
+                key={i}
+                style={dataLineStyle}
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.5 + i * 0.1 }}
+              >
+                <span style={{ opacity: 0.8 }}>{l.label}:</span>
+                <span
+                  style={{
+                    fontWeight: "bold",
+                    color: styl.text,
+                    fontSize: "1rem",
+                  }}
+                >
+                  {displayValue(l.value)}
+                </span>
+              </motion.div>
+            ))
+          ) : (
+            <div
+              style={{
+                fontSize: "0.9rem",
+                opacity: 0.7,
+                textAlign: "center",
+                padding: "10px",
+              }}
+            >
+              📊 No data available
+            </div>
+          )}
+        </motion.div>
+
+        {data?.note && (
+          <motion.div
+            style={noteStyle}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.8 }}
+          >
+            🛰️ <strong>Note:</strong> {data.note}
+          </motion.div>
+        )}
+
+        <motion.div
+          style={footerStyle}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.9 }}
+        >
+          <div style={updateTimeStyle}>
+            🕐 Updated: {data?.updatedAt || "Not available"}
+          </div>
+          <motion.button
+            onClick={onViewDetails}
+            style={buttonStyle}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: `0 6px 25px ${styl.glow}`,
+            }}
+            whileTap={{ scale: 0.95 }}
+          >
+            View Details →
+          </motion.button>
+        </motion.div>
       </div>
-    </div>
+
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          width: "100px",
+          height: "100px",
+          background: `radial-gradient(circle at top right, ${styl.border}40, transparent)`,
+          pointerEvents: "none",
+        }}
+      />
+    </motion.div>
   );
 };
 

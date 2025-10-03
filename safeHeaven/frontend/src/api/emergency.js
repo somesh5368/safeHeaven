@@ -1,20 +1,48 @@
-import axios from "axios";
+// src/api/emergency.js
+import API from './axiosConfig';
 
-const API = "http://localhost:5000/api/emergency"; // update if your backend URL is different
+const ENDPOINT = '/api/emergency';
 
-// Get JWT token from localStorage
-const authHeader = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-});
+// GET all emergency contacts
+export const getContacts = async () => {
+  try {
+    const response = await API.get(ENDPOINT);
+    return response;
+  } catch (error) {
+    console.error('Error fetching emergency contacts:', error);
+    throw error;
+  }
+};
 
-// GET all contacts
-export const getContacts = () => axios.get(API, authHeader());
+// ADD a new emergency contact
+export const addContact = async (contact) => {
+  try {
+    const response = await API.post(ENDPOINT, contact);
+    return response;
+  } catch (error) {
+    console.error('Error adding emergency contact:', error);
+    throw error;
+  }
+};
 
-// ADD a new contact
-export const addContact = (contact) => axios.post(API, contact, authHeader());
+// UPDATE an existing emergency contact
+export const updateContact = async (id, contact) => {
+  try {
+    const response = await API.put(`${ENDPOINT}/${id}`, contact);
+    return response;
+  } catch (error) {
+    console.error('Error updating emergency contact:', error);
+    throw error;
+  }
+};
 
-// UPDATE a contact
-export const updateContact = (id, contact) => axios.put(`${API}/${id}`, contact, authHeader());
-
-// DELETE a contact
-export const deleteContact = (id) => axios.delete(`${API}/${id}`, authHeader());
+// DELETE an emergency contact
+export const deleteContact = async (id) => {
+  try {
+    const response = await API.delete(`${ENDPOINT}/${id}`);
+    return response;
+  } catch (error) {
+    console.error('Error deleting emergency contact:', error);
+    throw error;
+  }
+};
