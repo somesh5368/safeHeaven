@@ -3,6 +3,8 @@ import API from './axiosConfig';
 
 const ENDPOINT = '/api/emergency';
 
+// ================== CONTACT CRUD ==================
+
 // GET all emergency contacts
 export const getContacts = async () => {
   try {
@@ -46,3 +48,17 @@ export const deleteContact = async (id) => {
     throw error;
   }
 };
+
+// ================== EMAIL ALERT ==================
+
+// Send emergency email to all contacts (with location)
+export const sendEmergencyEmail = async (location) => {
+  try {
+    const response = await API.post(`/api/emergency/send-email`, location);
+    return response;
+  } catch (error) {
+    console.error('Error sending emergency email:', error);
+    throw error;
+  }
+};
+

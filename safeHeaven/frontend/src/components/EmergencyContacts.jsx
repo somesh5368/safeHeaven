@@ -5,6 +5,7 @@ import {
   addContact,
   updateContact,
   deleteContact,
+  sendEmergencyEmail, // <-- new API call
 } from "../api/emergency";
 
 function EmergencyContacts() {
@@ -14,6 +15,7 @@ function EmergencyContacts() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", relation: "" });
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     fetchContacts();
@@ -71,6 +73,39 @@ function EmergencyContacts() {
     setEditId(null);
   };
 
+  // New: Send email to all contacts
+const handleSendEmail = async () => {
+  try {
+    setSending(true);
+
+    // Get user location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const locationData = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+
+        await sendEmergencyEmail(locationData); // pass location to backend
+        alert("✅ Emergency email with location sent!");
+        setSending(false);
+      }, (err) => {
+        console.error("Location error:", err);
+        alert("❌ Could not get location");
+        setSending(false);
+      });
+    } else {
+      alert("❌ Geolocation not supported by your browser");
+      setSending(false);
+    }
+  } catch (err) {
+    console.error("Error sending emails:", err);
+    alert("❌ Failed to send emails.");
+    setSending(false);
+  }
+};
+
+
   return (
     <div style={styles.container}>
       <h2 style={styles.title}>📞 Emergency Contacts</h2>
@@ -124,7 +159,7 @@ function EmergencyContacts() {
         </div>
       </form>
 
-      {/* Show "Go to Home" button only if at least 1 contact */}
+      {/* Show action buttons only if at least 1 contact */}
       {contacts.length > 0 && (
         <div style={{ marginBottom: "20px", textAlign: "center" }}>
           <button
@@ -136,10 +171,27 @@ function EmergencyContacts() {
               borderRadius: "6px",
               cursor: "pointer",
               fontSize: "16px",
+              marginRight: "10px",
             }}
             onClick={() => navigate("/")}
           >
             🏠 Go to Home
+          </button>
+
+          <button
+            style={{
+              padding: "10px 20px",
+              background: "#e67e22",
+              color: "#fff",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontSize: "16px",
+            }}
+            onClick={handleSendEmail}
+            disabled={sending}
+          >
+            {sending ? "Sending..." : "📧 Send Emergency Email"}
           </button>
         </div>
       )}

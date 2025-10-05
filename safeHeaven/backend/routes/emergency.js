@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const EmergencyContact = require("../models/EmergencyContact");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 
 // Middleware: reuse jwtVerify logic from server.js
 const jwtVerify = (req, res, next) => {
@@ -73,5 +74,54 @@ router.delete("/:id", jwtVerify, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// 📧 Send emergency email with location
+router.post("/send-email", jwtVerify, async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+
+    const contacts = await EmergencyContact.find({ userId: req.user.id });
+    if (!contacts || contacts.length === 0) {
+      return res.status(404).json({ error: "No emergency contacts found" });
+    }
+
+    // Extract only emails that are not empty
+    const recipientEmails = contacts.map(c => c.email).filter(e => !!e);
+
+    if (recipientEmails.length === 0) {
+      return res.status(400).json({ error: "No contacts have valid email addresses" });
+    }
+
+    // Build location link if available
+    let locationMessage = "";
+    if (latitude && longitude) {
+      locationMessage = `\n\n📍 Current Location: https://www.google.com/maps?q=${latitude},${longitude}`;
+    }
+
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const mailOptions = {
+      from: `"SafeHeaven" <${process.env.EMAIL_USER}>`,
+      to: recipientEmails,
+      subject: "🚨 Emergency Alert",
+      text: `This is an emergency alert. Please check on your loved one immediately.${locationMessage}`
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ message: "Emergency email sent with location" });
+  } catch (err) {
+    console.error("Error sending emergency email:", err);
+    res.status(500).json({ error: "Failed to send emergency emails" });
+  }
+});
+
 
 module.exports = router;
