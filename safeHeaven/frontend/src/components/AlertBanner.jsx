@@ -1,6 +1,5 @@
 // src/components/AlertBanner.jsx
 import React from "react";
-
 const AlertBanner = ({ banner, onClose }) => {
   if (!banner) return null;
 
