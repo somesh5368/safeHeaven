@@ -7,6 +7,7 @@ module.exports = function(app) {
     changeOrigin: true,
     pathRewrite: {'^/usgs': ''},
   }));
+  
   app.use('/nws', createProxyMiddleware({
     target: 'https://api.weather.gov',
     changeOrigin: true,
