@@ -1,9 +1,5 @@
 /* src/index.css */
 
-/* ❌ REMOVE THIS LINE - Yeh galat hai */
-/* @import '~leaflet/dist/leaflet.css'; */
-
-/* ✅ Leaflet CSS is imported in index.js, not here */
 
 * {
   margin: 0;
