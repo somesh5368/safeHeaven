@@ -1,4 +1,5 @@
 // src/components/AutoHazardEvaluator.jsx
+
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchWeather } from "../utils/fetchWeather";
