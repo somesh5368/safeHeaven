@@ -1,4 +1,5 @@
 // src/utils/fetchEarthquakes.js
+
 import axios from 'axios';
 
 export async function fetchEarthquakes({ lat, lon, hours = 48, radiusKm = 500, minmag = 3.0 }) {
