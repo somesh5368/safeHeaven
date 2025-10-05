@@ -8,6 +8,7 @@ export async function fetchTsunamiAlerts() {
     });
     if (!res.ok) {
       // eslint-disable-next-line no-console
+      
       console.error('NWS fetch error status', res.status);
       throw new Error(`NWS ${res.status}`);
     }
