@@ -1,5 +1,6 @@
 // src/styles/uiTokens.js
-export const space = { xs: 6, sm: 10, md: 14, lg: 20, xl: 28 }; // spacing scale [web:365]
+
+export const space = { xs: 6, sm: 10, md: 14, lg: 20, xl: 28 }; 
 export const radius = { sm: 8, md: 12, lg: 16 };
 export const shadow = {
   sm: "0 6px 16px rgba(0,0,0,0.06)",
