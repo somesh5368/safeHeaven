@@ -1,4 +1,5 @@
 // src/utils/disasterConfig.js
+
 const DISASTER_CONFIG = {
   earthquake: {
     color: '#FF0000',
