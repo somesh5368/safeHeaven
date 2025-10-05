@@ -2,7 +2,7 @@
 export const fetchWeather = async (latitude, longitude) => {
   const today = new Date();
   const endDate = new Date(today);
-  endDate.setDate(today.getDate() - 1); // complete daily data
+  endDate.setDate(today.getDate() - 1);
   const end = endDate.toISOString().slice(0,10).replace(/-/g, "");
   const startDate = new Date(endDate);
   startDate.setDate(endDate.getDate() - 4);
@@ -13,7 +13,6 @@ export const fetchWeather = async (latitude, longitude) => {
   try {
     const res = await fetch(url);
     if (!res.ok) {
-      // eslint-disable-next-line no-console
       console.error('POWER fetch error status', res.status);
       throw new Error(`POWER error ${res.status}`);
     }
@@ -34,7 +33,6 @@ export const fetchWeather = async (latitude, longitude) => {
       rain:        p?.PRECTOTCORR ? fix(p.PRECTOTCORR[date]) : null
     }));
   } catch (e) {
-    // eslint-disable-next-line no-console
     console.error('POWER fetch exception', e);
     throw e;
   }
