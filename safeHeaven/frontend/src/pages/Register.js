@@ -1,4 +1,5 @@
 // frontend/src/pages/Register.js
+
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -525,3 +526,4 @@ function Register() {
 }
 
 export default Register;
+
