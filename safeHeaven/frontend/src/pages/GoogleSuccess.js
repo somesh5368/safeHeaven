@@ -12,7 +12,6 @@ function GoogleSuccess() {
     if (token) {
       // Save token in localStorage
       localStorage.setItem("token", token);
-
       // Go to home
       navigate("/", { replace: true });
     } else {
