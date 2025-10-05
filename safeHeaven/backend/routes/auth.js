@@ -1,3 +1,4 @@
+
 // routes/auth.js
 const express = require('express');
 const router = express.Router();
@@ -268,3 +269,4 @@ router.post('/google', async (req, res) => {
 });
 
 module.exports = router;
+
