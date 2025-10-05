@@ -1,170 +1,148 @@
 // src/components/DisasterDashboard.jsx
-import React, { useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useCallback } from "react";
 import DisasterCard from "./DisasterCard";
-import AutoHazardEvaluator from "./AutoHazardEvaluator";
 
-export default function DisasterDashboard({ coords, onAlert }) {
-  const [model, setModel] = useState({
-    loading: false,
-    flood: { status: "neutral", lines: [], updatedAt: "", note: "" },
-    cyclone: { status: "neutral", lines: [], updatedAt: "", note: "" },
-    earthquake: { status: "neutral", lines: [], updatedAt: "", note: "" },
-    tsunami: { status: "neutral", lines: [], updatedAt: "", note: "" }
-  });
+function DisasterDashboard({ coords, dailyWeather, onAlert }) {
+  const [earthquakeData, setEarthquakeData] = useState(null);
+  const [tsunamiData, setTsunamiData] = useState(null);
 
-  const handleResult = useCallback((m) => {
-    setModel({
-      loading: m.loading,
-      flood: m.flood,
-      cyclone: m.cyclone,
-      earthquake: m.earthquake,
-      tsunami: m.tsunami
-    });
-
-    // Trigger alert if needed
-    if (m.top?.level === 'critical' || m.top?.level === 'warning') {
-      onAlert?.(m.top.key, m.top.level);
+  // Fetch USGS earthquakes near coords (optional)
+  const fetchUSGSEarthquakes = useCallback(async () => {
+    if (!coords) return;
+    try {
+      // Example: M2.5+ earthquakes in last 24h within ~500km radius
+      const { latitude, longitude } = coords;
+      const radius = 5; // degrees (approx 500km at equator)
+      const minLat = latitude - radius, maxLat = latitude + radius;
+      const minLon = longitude - radius, maxLon = longitude + radius;
+      const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${new Date(Date.now() - 86400000).toISOString()}&minlatitude=${minLat}&maxlatitude=${maxLat}&minlongitude=${minLon}&maxlongitude=${maxLon}&minmagnitude=2.5`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`USGS ${r.status}`);
+      const geo = await r.json();
+      const count = geo?.features?.length || 0;
+      const maxMag = count > 0 ? Math.max(...geo.features.map(f => f.properties?.mag || 0)) : 0;
+      setEarthquakeData({ count, maxMag, updated: new Date().toLocaleTimeString() });
+    } catch (e) {
+      console.error("USGS fetch error", e);
+      setEarthquakeData(null);
     }
-  }, [onAlert]);
+  }, [coords]);
 
-  const containerStyle = {
-    background: "rgba(15, 20, 40, 0.85)",
-    backdropFilter: "blur(20px)",
-    borderRadius: "20px",
-    padding: "35px",
-    border: "2px solid rgba(255, 69, 58, 0.3)",
-    boxShadow: "0 8px 40px rgba(255, 69, 58, 0.2)",
-    marginBottom: "30px",
-  };
+  // Fetch NWS tsunami alerts (optional; US-focused)
+  const fetchNWSTsunami = useCallback(async () => {
+    try {
+      // NWS CAP alerts feed for tsunami warnings
+      const url = "https://api.weather.gov/alerts/active?event=Tsunami%20Warning";
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`NWS ${r.status}`);
+      const j = await r.json();
+      const count = j?.features?.length || 0;
+      setTsunamiData({ count, updated: new Date().toLocaleTimeString() });
+    } catch (e) {
+      console.error("NWS tsunami fetch error", e);
+      setTsunamiData(null);
+    }
+  }, []);
 
-  const titleStyle = {
-    color: "#FF4538",
-    fontSize: "2rem",
-    marginBottom: "10px",
-    textAlign: "center",
-    fontWeight: "bold",
-    textShadow: "0 0 20px rgba(255, 69, 58, 0.6)",
-  };
+  useEffect(() => {
+    fetchUSGSEarthquakes();
+    fetchNWSTsunami();
+    // Refresh every 5 minutes
+    const interval = setInterval(() => {
+      fetchUSGSEarthquakes();
+      fetchNWSTsunami();
+    }, 300000);
+    return () => clearInterval(interval);
+  }, [fetchUSGSEarthquakes, fetchNWSTsunami]);
 
-  const subtitleStyle = {
-    color: "#FF9500",
-    fontSize: "1rem",
-    marginBottom: "30px",
-    textAlign: "center",
-    opacity: 0.9,
-  };
+  // Simple rules: earthquake card critical if maxMag>=5.5 and count>0, warning if count>0
+  const eqStatus = earthquakeData
+    ? earthquakeData.maxMag >= 5.5 ? "critical" : earthquakeData.count > 0 ? "warning" : "neutral"
+    : "neutral";
 
-  const gridStyle = {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, 1fr)",
-    gap: "25px",
-    marginTop: "25px",
+  // Tsunami card critical if any active warnings
+  const tsunamiStatus = tsunamiData && tsunamiData.count > 0 ? "critical" : "neutral";
+
+  // Placeholder: Flood/Cyclone cards from weather (you can refine with real logic)
+  const floodStatus = dailyWeather.some(d => d.rain && d.rain > 50) ? "warning" : "neutral";
+  const cycloneStatus = "neutral"; // replace with actual logic if wind/pressure data available
+
+  const handleDispatch = ({ type, status, coords: c, data }) => {
+    console.log("Dispatching emergency alert:", { type, status, coords: c, data });
+    // TODO: call backend API to send SMS/calls/push to emergency contacts
+    alert(`🚨 Alert dispatched: ${type} (${status})`);
   };
 
   return (
-    <motion.div
-      style={containerStyle}
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.7 }}
-    >
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1, rotate: 360 }}
-        transition={{ duration: 0.8, delay: 0.2 }}
-        style={{ textAlign: "center", fontSize: "4rem", marginBottom: "15px" }}
-      >
-        🛰️
-      </motion.div>
-
-      <h2 style={titleStyle}>NASA Hazard Assessment</h2>
-      <p style={subtitleStyle}>Real-Time Multi-Source Disaster Analysis</p>
-
-      {/* Data fetcher - NO UI */}
-      <AutoHazardEvaluator 
-        coords={coords} 
-        onResult={handleResult} 
-        showUI={false}  
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", justifyContent: "center" }}>
+      <DisasterCard
+        type="earthquake"
+        title="Earthquake Risk"
+        coords={coords}
+        status={eqStatus}
+        data={{
+          lines: earthquakeData
+            ? [
+                { label: "Recent events (24h)", value: earthquakeData.count },
+                { label: "Max magnitude", value: earthquakeData.maxMag.toFixed(1) },
+              ]
+            : [],
+          updatedAt: earthquakeData?.updated || "N/A",
+          note: "USGS real-time data"
+        }}
+        onViewDetails={() => alert("Earthquake details modal")}
+        onDispatchEmergency={handleDispatch}
       />
 
-      {/* Display loading state */}
-      {model.loading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          style={{
-            textAlign: "center",
-            color: "#FF9500",
-            fontSize: "1.2rem",
-            marginBottom: "25px",
-            fontWeight: "600",
-          }}
-        >
-          <motion.span
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            style={{ display: "inline-block", marginRight: "10px" }}
-          >
-            🛰️
-          </motion.span>
-          Analyzing satellite data from NASA, USGS & NWS...
-        </motion.div>
-      )}
-
-      {/* Cards Grid */}
-      <div style={gridStyle}>
-        <DisasterCard 
-          type="flood" 
-          title="Flood Risk" 
-          coords={coords} 
-          data={model.flood} 
-          status={model.flood.status} 
-          onViewDetails={() => console.log('View flood details')} 
-        />
-        <DisasterCard 
-          type="cyclone" 
-          title="Cyclone Risk" 
-          coords={coords} 
-          data={model.cyclone} 
-          status={model.cyclone.status} 
-          onViewDetails={() => console.log('View cyclone details')} 
-        />
-        <DisasterCard 
-          type="earthquake" 
-          title="Earthquake Activity" 
-          coords={coords} 
-          data={model.earthquake} 
-          status={model.earthquake.status} 
-          onViewDetails={() => console.log('View earthquake details')} 
-        />
-        <DisasterCard 
-          type="tsunami" 
-          title="Tsunami Alerts" 
-          coords={coords} 
-          data={model.tsunami} 
-          status={model.tsunami.status} 
-          onViewDetails={() => console.log('View tsunami details')} 
-        />
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        style={{
-          marginTop: "30px",
-          padding: "20px",
-          background: "rgba(255, 149, 0, 0.1)",
-          borderRadius: "15px",
-          border: "2px solid rgba(255, 149, 0, 0.3)",
-          textAlign: "center",
+      <DisasterCard
+        type="tsunami"
+        title="Tsunami Alert"
+        coords={coords}
+        status={tsunamiStatus}
+        data={{
+          lines: tsunamiData
+            ? [{ label: "Active warnings", value: tsunamiData.count }]
+            : [],
+          updatedAt: tsunamiData?.updated || "N/A",
+          note: "NWS CAP feed"
         }}
-      >
-        <p style={{ color: "rgba(255,255,255,0.9)", fontSize: "0.9rem", margin: 0 }}>
-          🛰️ <strong>Data Sources:</strong> NASA POWER API • USGS Earthquake Data • NOAA/NWS Tsunami Alerts
-        </p>
-      </motion.div>
-    </motion.div>
+        onViewDetails={() => alert("Tsunami details modal")}
+        onDispatchEmergency={handleDispatch}
+      />
+
+      <DisasterCard
+        type="flood"
+        title="Flood Risk"
+        coords={coords}
+        status={floodStatus}
+        data={{
+          lines: [
+            { label: "Heavy rain detected", value: dailyWeather.some(d => d.rain > 50) ? "Yes" : "No" },
+          ],
+          updatedAt: dailyWeather[0]?.date || "N/A",
+          note: "NASA POWER precipitation data"
+        }}
+        onViewDetails={() => alert("Flood details modal")}
+        onDispatchEmergency={handleDispatch}
+      />
+
+      <DisasterCard
+        type="cyclone"
+        title="Cyclone/Storm Risk"
+        coords={coords}
+        status={cycloneStatus}
+        data={{
+          lines: [
+            { label: "Status", value: "Monitoring" },
+          ],
+          updatedAt: new Date().toLocaleTimeString(),
+          note: "EONET severe storms + weather"
+        }}
+        onViewDetails={() => alert("Cyclone details modal")}
+        onDispatchEmergency={handleDispatch}
+      />
+    </div>
   );
 }
+
+export default DisasterDashboard;

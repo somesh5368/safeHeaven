@@ -1,5 +1,5 @@
 // src/components/ManualTriggerForm.js
-import React from "react";
+import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 
 const ManualTriggerForm = ({
@@ -92,6 +92,24 @@ const ManualTriggerForm = ({
     lineHeight: "1.6",
   };
 
+  const commitIfEnter = (e) => {
+    if (e.key === "Enter" && !submitting) {
+      onSubmit();
+    }
+  };
+
+  const latNum = useMemo(() => Number(manualLat), [manualLat]);
+  const lngNum = useMemo(() => Number(manualLng), [manualLng]);
+  const latValid = Number.isFinite(latNum) && latNum >= -90 && latNum <= 90;
+  const lngValid = Number.isFinite(lngNum) && lngNum >= -180 && lngNum <= 180;
+  const canSubmit = latValid && lngValid && !submitting;
+
+  const presets = [
+    { label: "🌀 Storms (Bahamas)", lat: 24.2, lng: -77.3 },
+    { label: "🌊 Floods (Jakarta)", lat: -6.2, lng: 106.8 },
+    { label: "🏚️ Quakes (Japan)", lat: 36.0, lng: 142.0 },
+  ];
+
   return (
     <motion.div
       style={containerStyle}
@@ -121,11 +139,13 @@ const ManualTriggerForm = ({
       >
         <motion.input
           type="text"
-          placeholder="🌐 Latitude"
+          placeholder="🌐 Latitude (e.g., 19.0760)"
           value={manualLat}
           onChange={(e) => setManualLat(e.target.value)}
+          onKeyDown={commitIfEnter}
           style={inputStyle}
           autoComplete="off"
+          inputMode="decimal"
           whileFocus={{
             borderColor: "#FF4538",
             boxShadow: "0 0 20px rgba(255, 69, 58, 0.5)",
@@ -145,11 +165,13 @@ const ManualTriggerForm = ({
 
         <motion.input
           type="text"
-          placeholder="🗺️ Longitude"
+          placeholder="🗺️ Longitude (e.g., 72.8777)"
           value={manualLng}
           onChange={(e) => setManualLng(e.target.value)}
+          onKeyDown={commitIfEnter}
           style={inputStyle}
           autoComplete="off"
+          inputMode="decimal"
           whileFocus={{
             borderColor: "#FF4538",
             boxShadow: "0 0 20px rgba(255, 69, 58, 0.5)",
@@ -169,17 +191,19 @@ const ManualTriggerForm = ({
 
         <motion.button
           onClick={onSubmit}
-          disabled={submitting}
-          style={buttonStyle}
+          disabled={!canSubmit}
+          style={{
+            ...buttonStyle,
+            opacity: canSubmit ? 1 : 0.6,
+            cursor: canSubmit ? "pointer" : "not-allowed",
+          }}
           whileHover={
-            !submitting
-              ? {
-                  scale: 1.05,
-                  boxShadow: "0 6px 25px rgba(255, 69, 58, 0.6)",
-                }
+            canSubmit
+              ? { scale: 1.05, boxShadow: "0 6px 25px rgba(255, 69, 58, 0.6)" }
               : {}
           }
-          whileTap={!submitting ? { scale: 0.98 } : {}}
+          whileTap={canSubmit ? { scale: 0.98 } : {}}
+          title={!canSubmit ? "Enter valid latitude and longitude" : "Run hazard check"}
         >
           {submitting ? (
             <>
@@ -201,6 +225,39 @@ const ManualTriggerForm = ({
         </motion.button>
       </motion.div>
 
+      <div
+        style={{
+          marginTop: 14,
+          display: "flex",
+          gap: 10,
+          flexWrap: "wrap",
+          justifyContent: "center",
+        }}
+      >
+        {presets.map((p) => (
+          <button
+            key={p.label}
+            onClick={() => {
+              setManualLat(String(p.lat));
+              setManualLng(String(p.lng));
+            }}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,149,0,0.35)",
+              background: "rgba(255,149,0,0.1)",
+              color: "white",
+              cursor: "pointer",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+            }}
+            title="Quick-fill test coordinates"
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       <motion.div
         style={infoBoxStyle}
         initial={{ opacity: 0 }}
@@ -208,12 +265,10 @@ const ManualTriggerForm = ({
         transition={{ duration: 0.5, delay: 0.6 }}
       >
         <p style={infoTextStyle}>
-          <strong>📌 Examples:</strong>
-          <br />
-          New York: 40.7128, -74.0060 • Tokyo: 35.6762, 139.6503 • Mumbai: 19.0760, 72.8777
+          <strong>📌 Pro Tip:</strong> Use presets above to instantly jump near active events for quick testing
         </p>
         <p style={{ ...infoTextStyle, marginTop: "10px" }}>
-          🛰️ <strong>Data from NASA POWER API</strong> • Range: -90 to 90 (Lat), -180 to 180 (Lng)
+          🛰️ <strong>Data from NASA EONET</strong> • Real-time natural hazard tracker
         </p>
       </motion.div>
     </motion.div>
